@@ -46,9 +46,9 @@ def main():
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-154254.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-180658.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210502-220006.txt"
-	# hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"
+	hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210506-155335.txt"
-	hist_data_file = utils.doge_hist_data_dir + "20210509-143523.txt"	
+	# hist_data_file = utils.doge_hist_data_dir + "20210509-143523.txt"	
 
 	# hist_data_file = utils.doge_hist_data_dir + "20210504-094158.txt" # short file for debugging
 	
