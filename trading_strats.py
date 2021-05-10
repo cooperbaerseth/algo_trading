@@ -348,11 +348,11 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# 	the top, and buy near the bottom.
 
 	# history range setting
-	# hist_range = None # uses whole history file
+	hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
-	# hist_range = [0, 65500]
+	hist_range = [0, 65500]
 	# hist_range = [0, 72800]
-	hist_range = [0, 37900]
+	# hist_range = [0, 37900]
 
 	# define starting condition parameters
 	# Starting condition will be when:
@@ -368,8 +368,8 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	
 	# buyback diminish factor shrinks the buyback threshold as we increase the number of consecutive sells (insentivises taking profit from sells)
 	# buyback_dim_factor = 1 # no dim factor
-	# buyback_dim_factor = .9
-	buyback_dim_factor = .6
+	buyback_dim_factor = .9
+	# buyback_dim_factor = .6
 	# buyback_dim_factor = .5
 	# buyback_dim_factor = .3
 
@@ -448,7 +448,9 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 
 	# search for percent threshold change to start trading
 	buyback_amnt = 0.0
-	ref_price = start_price.copy()
+	# ref_price = start_price.copy()
+	sell_ref_price = start_price.copy()	# sell reference price tracks the local peak for reference in starting a sell sequence
+	buyback_ref_price = start_price.copy() # buyback reference price tracks the local minimum in order to get the best buyback price (potentially better than leaving the buyback reference as the last sell point)
 	last_trade = 'buy'
 	# loop = True
 	# while loop:
@@ -501,7 +503,9 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 		elif trade_on == "moving_average":
 			temp = ma
 		cur_price[qind] = temp
-		cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
+		# cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
+		cur_change_sell = get_percent_diff(base_price=sell_ref_price, cur_price=cur_price)
+		cur_change_buyback = get_percent_diff(base_price=buyback_ref_price, cur_price=cur_price)
 		# logging.info("===============================")
 		# logging.info("Reference price: " + str(ref_price))
 		# logging.info("Current price: " + str(cur_price))
@@ -515,20 +519,20 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 			cur_buyback_dim_factor = 1
 
 		# if cur_price >= ref_price: # without buyback queue factor
-		if cur_price[qind] >= ref_price:
+		if cur_price[qind] >= sell_ref_price:
 			# pdb.set_trace()
 			# this condition is for increasing the reference price when looking for a sell threshold
 			# if cur_price > ref_price and last_trade == 'buy': # this condition makes the algo buy if we have the same price multiple times in a row
 			if last_trade == 'buy':
 				# ref_price = cur_price # without buyback queue factor
-				ref_price = cur_price[qind]
+				sell_ref_price = cur_price[qind]
 				continue # (?)
 			# buy back the amount that was sold (in coins) to prevent more losses
 			# - use cumul_sell_amnt for amount to buy back
 			# - keep reference price the same
 			# if cur_change >= (buyback_percent_thresh * cur_buyback_dim_factor): # not using a queue
 			# if cur_change[qind] >= (buyback_percent_thresh * cur_buyback_dim_factor): # using only the most recent price (not making use of the queue)
-			if np.where(cur_change >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
+			if np.where(cur_change_buyback >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
 				# plotting.basic_plot(ti.activity_file_dir)
 				# pdb.set_trace()
 				logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
@@ -537,15 +541,16 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					trade_amount=buyback_amnt, 
 					trade_unit=buyback_type, 
 					order_side='buy', 
-					ref_price=ref_price,
+					ref_price=buyback_ref_price,
 					verbose=True)
 				last_trade = 'buy'
 				buyback_amnt = 0.0
 				consec_sells = 0
-				ref_price = confirmed_price
+				sell_ref_price = confirmed_price
+				buyback_ref_price = confirmed_price
 		# elif cur_change < percent_sell_thresh: # without buyback queue factor
 		# elif cur_change[qind] < percent_sell_thresh: # without using queue for sell condition
-		elif np.where(cur_change < percent_sell_thresh, 1, 0).sum() == sell_queue_factor: # using queue to exclude anomalous lows
+		elif np.where(cur_change_sell < percent_sell_thresh, 1, 0).sum() == sell_queue_factor: # using queue to exclude anomalous lows
 			# logging.info("!!!!!!!!!!!! PERCENT THRESHOLD SELL TRIGGERED !!!!!!!!!!!!")
 			if ti.trend == 0:
 				confirmed_price, confirmed_quantity = ti.place_order(
@@ -553,20 +558,22 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					trade_amount=trade_amount, 
 					trade_unit=trade_unit, 
 					order_side='sell', 
-					ref_price=ref_price,
+					ref_price=sell_ref_price,
 					verbose=True)
-				if confirmed_price is not None:
-					# ref_price = confirmed_price.copy()
-					ref_price = cur_price[qind]	# debug for ma decision making
+				if confirmed_price is not None:	# place order returns none if we have no more quantity to sell
 					if buyback_type == 'coin':
 						buyback_amnt += confirmed_quantity
 					elif buyback_type == 'dollar':
 						buyback_amnt += (confirmed_price * confirmed_quantity)
 					last_trade = 'sell'
 					consec_sells += 1
-					ref_price = confirmed_price
+					sell_ref_price = confirmed_price
+					buyback_ref_price = confirmed_price
 				else:
-					ref_price = cur_price[qind]
+					sell_ref_price = cur_price[qind]
+					buyback_ref_price = cur_price[qind]
+		elif cur_price[qind] < buyback_ref_price:
+			buyback_ref_price = cur_price[qind]
 		# if price keeps going lower but the sell condition isn't met yet, set reference price lower... this means the buyback threshold will be more sensitive
 
 		# debug price/ma
