@@ -5,7 +5,7 @@ import utils
 
 import pdb
 
-def basic_plot(file_dir):
+def basic_plot(file_dir, trade_interface):
 	# load log file into pandas dataframe
 	df = pd.read_csv(
 		filepath_or_buffer=file_dir, 
@@ -50,6 +50,10 @@ def basic_plot(file_dir):
 	buff = 0.01
 	y = df['price']
 	ax.set_ylim([y.min()-buff, y.max()+buff])
+
+	# title
+	# fig.suptitle("percent_sell_thresh: -0.5")
+
 	ax.grid()
 	plt.show()
 
