@@ -29,6 +29,7 @@ activity_column_dict = {
 		'current_quantity': np.float64, 
 		'order_side': str, 
 		'confirmed_price': np.float64, 
+		'ref_price': np.float64,
 		'order_amnt_dollars': np.float64, 
 		'order_amnt_quant': np.float64}
 

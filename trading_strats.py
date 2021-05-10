@@ -228,7 +228,7 @@ class TradeInterface:
 
 		return
 
-	def place_order(self, symbol, trade_amount, trade_unit, order_side, verbose=False):
+	def place_order(self, symbol, trade_amount, trade_unit, order_side, ref_price, verbose=False):
 		# get current price
 		if self.live:
 			logging.info("getting current live price in place order not implemented yet")
@@ -298,6 +298,7 @@ class TradeInterface:
 		if self.record_activity:
 			self.activity_row[self.get_col_index('order_side')] = order_side
 			self.activity_row[self.get_col_index('confirmed_price')] = confirmed_price
+			self.activity_row[self.get_col_index('ref_price')] = ref_price
 			self.activity_row[self.get_col_index('order_amnt_dollars')] = confirmed_amnt_dollars
 			self.activity_row[self.get_col_index('order_amnt_quant')] = confirmed_amnt_quant
 
@@ -448,46 +449,47 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# search for percent threshold change to start trading
 	buyback_amnt = 0.0
 	ref_price = start_price.copy()
-	loop = True
-	while loop:
-		exact_price, ma = ti.get_next_price()
-		if trade_on == "exact_price":
-			cur_price = exact_price
-		elif trade_on == "moving_average":
-			cur_price = ma
-		cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
-		logging.info("===============================")
-		logging.info("Reference price: " + str(ref_price))
-		logging.info("Current price: " + str(cur_price))
-		logging.info("Percent change: " + str(cur_change))
-		logging.info("===============================\n")
-		if cur_change < percent_sell_thresh and ti.trend == 0:
-			logging.info("!!!!!!!!!!!! Percent threshold met !!!!!!!!!!!!")
-			# def place_order(symbol, trade_amount, trade_unit, order_side):
-			confirmed_price, confirmed_quantity = ti.place_order(
-				symbol=symbol, 
-				trade_amount=trade_amount, 
-				trade_unit=trade_unit, 
-				order_side=side, 
-				verbose=True)
-			ref_price = confirmed_price.copy()
-			if buyback_type == 'coin':
-				buyback_amnt += confirmed_quantity
-			elif buyback_type == 'dollar':
-				buyback_amnt += (confirmed_price * confirmed_quantity)
-			loop = False
-			continue
-		if cur_price > ref_price:
-			ref_price = cur_price
-		if ti.record_activity:
-			ti.flush_activity_record()
-		if live_mode == False:
-			time.sleep(sleep_time)
+	last_trade = 'buy'
+	# loop = True
+	# while loop:
+	# 	exact_price, ma = ti.get_next_price()
+	# 	if trade_on == "exact_price":
+	# 		cur_price = exact_price
+	# 	elif trade_on == "moving_average":
+	# 		cur_price = ma
+	# 	cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
+	# 	logging.info("===============================")
+	# 	logging.info("Reference price: " + str(ref_price))
+	# 	logging.info("Current price: " + str(cur_price))
+	# 	logging.info("Percent change: " + str(cur_change))
+	# 	logging.info("===============================\n")
+	# 	if cur_change < percent_sell_thresh and ti.trend == 0:
+	# 		logging.info("!!!!!!!!!!!! Percent threshold met !!!!!!!!!!!!")
+	# 		# def place_order(symbol, trade_amount, trade_unit, order_side):
+	# 		confirmed_price, confirmed_quantity = ti.place_order(
+	# 			symbol=symbol, 
+	# 			trade_amount=trade_amount, 
+	# 			trade_unit=trade_unit, 
+	# 			order_side=side, 
+	# 			verbose=True)
+	# 		ref_price = confirmed_price.copy()
+	# 		if buyback_type == 'coin':
+	# 			buyback_amnt += confirmed_quantity
+	# 		elif buyback_type == 'dollar':
+	# 			buyback_amnt += (confirmed_price * confirmed_quantity)
+	# 		loop = False
+	# 		continue
+	# 	if cur_price > ref_price:
+	# 		ref_price = cur_price
+	# 	if ti.record_activity:
+	# 		ti.flush_activity_record()
+	# 	if live_mode == False:
+	# 		time.sleep(sleep_time)
 
 	# start main sell-buy loop here
 	sleep_time = 0
 	loop = True
-	last_trade = 'sell'
+	# last_trade = 'sell'
 	consec_sells = 0
 	cur_price = np.zeros(buyback_queue_factor)
 	qind = 0
@@ -535,6 +537,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					trade_amount=buyback_amnt, 
 					trade_unit=buyback_type, 
 					order_side='buy', 
+					ref_price=ref_price,
 					verbose=True)
 				last_trade = 'buy'
 				buyback_amnt = 0.0
@@ -550,6 +553,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					trade_amount=trade_amount, 
 					trade_unit=trade_unit, 
 					order_side='sell', 
+					ref_price=ref_price,
 					verbose=True)
 				if confirmed_price is not None:
 					# ref_price = confirmed_price.copy()
