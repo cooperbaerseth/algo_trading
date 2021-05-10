@@ -331,7 +331,7 @@ class TradeInterface:
 
 		# show results on plot
 		if self.plot_post_run:
-			plotting.basic_plot(self.activity_file_dir)
+			plotting.basic_plot(self.activity_file_dir, self)
 
 		quit()
 
@@ -347,31 +347,38 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# 	the top, and buy near the bottom.
 
 	# history range setting
-	hist_range = None # uses whole history file
+	# hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
 	# hist_range = [0, 65500]
 	# hist_range = [0, 72800]
+	hist_range = [0, 37900]
 
 	# define starting condition parameters
 	# Starting condition will be when:
 	#	- the price goes some percentage (percent_sell_thresh) above the average price over some defined interval (avg_interval)
 	avg_interval = 50
-	# percent_sell_thresh = -1.0
-	percent_sell_thresh = -0.5
+	
+	percent_sell_thresh = -1.0
+	# percent_sell_thresh = -0.5
+	
 	buyback_percent_thresh = 2.0
 	# buyback_percent_thresh = 1.0
 	# buyback_percent_thresh = 0.5
+	
 	# buyback diminish factor shrinks the buyback threshold as we increase the number of consecutive sells (insentivises taking profit from sells)
 	# buyback_dim_factor = 1 # no dim factor
-	buyback_dim_factor = .9
-	# buyback_dim_factor = .6
+	# buyback_dim_factor = .9
+	buyback_dim_factor = .6
 	# buyback_dim_factor = .5
 	# buyback_dim_factor = .3
+
 	# buyback_queue_factor = 3 # buyback queue factor determines how many values to store in the buyback queue before determining a buy is valid. All prices in the buyback queue must meet the buyback condition
 	buyback_queue_factor = 3
-	sell_queue_factor = 3
 	# buyback_queue_factor = 1
+
+	sell_queue_factor = 3
 	# sell_queue_factor = 1
+	
 	# TODO: bug with exponential moving average... check formula or implementation 
 	# moving_avg_params = (12, 'EMA') # moving average to record
 	# moving_avg_params = (5, 'EMA')
@@ -389,17 +396,22 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 
 	# trade parameters:
 	symbol = utils.doge_ticker_symbol 	# trading dogecoin
-	trade_on = "exact_price"	# "trad_on" determines if we make trade decisions based on the exact price or the moving average
-	# trade_on = "moving_average"
+	
+	# trade_on = "exact_price"	# "trad_on" determines if we make trade decisions based on the exact price or the moving average
+	trade_on = "moving_average"
+	
 	# trade_amount = 0.5
 	# trade_amount = 50
 	# trade_amount = 500
 	# trade_amount = 700
 	trade_amount = 5000
+	
 	trade_unit = 'dollar'
 	# trade_unit = 'coin'
+	
 	side = 'sell'
 	# side = 'buy'
+	
 	# buyback type determines if we keep the profit or reinvest it in the coin (dollar reinvests)
 	# buyback_type = 'coin' 
 	buyback_type = 'dollar'
@@ -449,7 +461,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 		logging.info("Current price: " + str(cur_price))
 		logging.info("Percent change: " + str(cur_change))
 		logging.info("===============================\n")
-		if cur_change < percent_sell_thresh:
+		if cur_change < percent_sell_thresh and ti.trend == 0:
 			logging.info("!!!!!!!!!!!! Percent threshold met !!!!!!!!!!!!")
 			# def place_order(symbol, trade_amount, trade_unit, order_side):
 			confirmed_price, confirmed_quantity = ti.place_order(
