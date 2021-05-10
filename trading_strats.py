@@ -350,7 +350,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# history range setting
 	hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
-	hist_range = [0, 65500]
+	# hist_range = [0, 65500]
 	# hist_range = [0, 72800]
 	# hist_range = [0, 37900]
 
