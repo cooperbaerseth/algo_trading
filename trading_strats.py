@@ -350,7 +350,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# history range setting
 	hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
-	# hist_range = [0, 65500]
+	hist_range = [0, 65500]
 	# hist_range = [0, 72800]
 	# hist_range = [0, 37900]
 
@@ -448,7 +448,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 
 	# search for percent threshold change to start trading
 	buyback_amnt = 0.0
-	# ref_price = start_price.copy()
+	# ref_price = start_price.copy() # to go back to a non decoupled reference price, change all sell/buyback reference prices to ref_price
 	sell_ref_price = start_price.copy()	# sell reference price tracks the local peak for reference in starting a sell sequence
 	buyback_ref_price = start_price.copy() # buyback reference price tracks the local minimum in order to get the best buyback price (potentially better than leaving the buyback reference as the last sell point)
 	last_trade = 'buy'
