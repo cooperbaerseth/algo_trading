@@ -85,8 +85,8 @@ class TradeInterface:
 		else:
 			# self.cur_quant, _ = utils.get_held_crypto_value(symbol=self.trade_symbol)
 			# self.cur_quant_val = self.cur_quant * hist_df['price'][self.cur_hist_ind]
-			# self.cur_quant = 30000
-			self.cur_quant = 3300
+			self.cur_quant = 30000
+			# self.cur_quant = 3300
 			self.cur_quant_val = self.cur_quant * hist_df['price'][self.cur_hist_ind]
 
 		self.start_quant = self.cur_quant
@@ -367,7 +367,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# history range setting
 	hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
-	hist_range = [0, 65500]
+	# hist_range = [0, 65500]
 	# hist_range = [0, 72800]
 	# hist_range = [0, 37900]
 
@@ -475,6 +475,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	loop = True
 	# last_trade = 'sell'
 	consec_sells = 0
+	cumul_sells_dollar = 0.0
 	cur_price = np.zeros(buyback_queue_factor)
 	qind = 0
 	while loop:
@@ -524,14 +525,17 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					ref_price=buyback_ref_price,
 					verbose=True)
 				last_trade = 'buy'
+				# pdb.set_trace()
 				logging.info(utils.GREEN + "=================== CONFIRMED BUY =================" + utils.ENDC)
-				logging.info("buyback amt: " + str(buyback_amnt))
+				logging.info("price: " + str(confirmed_price))
+				logging.info("buyback amt (" + buyback_type + "): " + str(buyback_amnt))
 				logging.info("price*quant: " + str((confirmed_price*confirmed_quantity)))
-				logging.info("profit: " + str(buyback_amnt - (confirmed_price*confirmed_quantity)))
+				logging.info("profit: " + str(cumul_sells_dollar - (confirmed_price*confirmed_quantity)))
 				logging.info(utils.GREEN + "===================================================" + utils.ENDC + "\n")
-				ti.trade_profit_taken += buyback_amnt - (confirmed_price*confirmed_quantity) 	# amount of profit taken on the trade is the amount (in dollars) you sold for, cumulatively, minus the amount (in dollars) you bought for
+				ti.trade_profit_taken += cumul_sells_dollar - (confirmed_price*confirmed_quantity) 	# amount of profit taken on the trade is the amount (in dollars) you sold for, cumulatively, minus the amount (in dollars) you bought for
 				buyback_amnt = 0.0
 				consec_sells = 0
+				cumul_sells_dollar = 0.0
 				sell_ref_price = confirmed_price
 				buyback_ref_price = confirmed_price
 		# elif cur_change < percent_sell_thresh: # without buyback queue factor
@@ -558,6 +562,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 						buyback_amnt += (confirmed_price * confirmed_quantity)
 					last_trade = 'sell'
 					consec_sells += 1
+					cumul_sells_dollar += (confirmed_price * confirmed_quantity)
 					sell_ref_price = confirmed_price
 					buyback_ref_price = confirmed_price
 				else:
