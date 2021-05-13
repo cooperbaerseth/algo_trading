@@ -32,10 +32,6 @@ class TradeInterface:
 		self.min_net = float("inf")
 		self.trade_profit_taken = 0.0
 		self.trade_symbol = trade_symbol
-		# self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
-		self.cur_quant = 30000
-		self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=trade_symbol, info='ask_price'))
-		self.start_quant, self.start_quant_val = self.cur_quant, self.cur_quant_val
 		self.record_activity = record_activity
 		self.activity_column_dict = utils.activity_column_dict
 		self.activity_column_names = list(utils.activity_column_dict.keys())
@@ -79,6 +75,22 @@ class TradeInterface:
 				self.cur_hist_ind = self.hist_range[0]
 			else:
 				self.cur_hist_ind = 0
+
+		# set starting quantity and value
+		# if you want to trade as if you had a certain quantity, use the hardcoded quant/val
+		if live:
+			self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
+			# self.cur_quant = 30000
+			# self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=trade_symbol, info='ask_price'))
+		else:
+			# self.cur_quant, _ = utils.get_held_crypto_value(symbol=self.trade_symbol)
+			# self.cur_quant_val = self.cur_quant * hist_df['price'][self.cur_hist_ind]
+			# self.cur_quant = 30000
+			self.cur_quant = 3300
+			self.cur_quant_val = self.cur_quant * hist_df['price'][self.cur_hist_ind]
+
+		self.start_quant = self.cur_quant
+		self.start_quant_val = self.cur_quant_val
 
 		# setup file to record activity
 		if self.record_activity:
@@ -286,7 +298,8 @@ class TradeInterface:
 				pass
 			else:
 				self.cur_quant += quantity
-				self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
+				# self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
+				self.cur_quant_val = self.cur_quant * self.hist['price'][self.cur_hist_ind]
 		elif order_side == 'sell':
 			self.num_sells += 1
 			if self.live:
@@ -295,7 +308,7 @@ class TradeInterface:
 				pass
 			else:
 				self.cur_quant -= quantity
-				self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
+				self.cur_quant_val = self.cur_quant * self.hist['price'][self.cur_hist_ind]
 
 		# record order-specific activity columns
 		if self.record_activity:
@@ -407,9 +420,9 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	
 	# trade_amount = 0.5
 	# trade_amount = 50
-	# trade_amount = 500
+	trade_amount = 500
 	# trade_amount = 700
-	trade_amount = 5000
+	# trade_amount = 5000
 	
 	trade_unit = 'dollar'
 	# trade_unit = 'coin'
@@ -418,8 +431,8 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# side = 'buy'
 	
 	# buyback type determines if we keep the profit or reinvest it in the coin (dollar reinvests)
-	# buyback_type = 'coin' 
-	buyback_type = 'dollar'
+	buyback_type = 'coin' 
+	# buyback_type = 'dollar'
 	# sleep_time = 0.05
 	sleep_time = 0
 
@@ -502,9 +515,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 			# if cur_change >= (buyback_percent_thresh * cur_buyback_dim_factor): # not using a queue
 			# if cur_change[qind] >= (buyback_percent_thresh * cur_buyback_dim_factor): # using only the most recent price (not making use of the queue)
 			if np.where(cur_change_buyback >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
-				# plotting.basic_plot(ti.activity_file_dir)
-				# pdb.set_trace()
-				logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
+				# logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
 				confirmed_price, confirmed_quantity = ti.place_order(
 					symbol=symbol, 
 					trade_amount=buyback_amnt, 
@@ -513,12 +524,11 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					ref_price=buyback_ref_price,
 					verbose=True)
 				last_trade = 'buy'
-				logging.info("=================== CONFIRMED BUY =================")
+				logging.info(utils.GREEN + "=================== CONFIRMED BUY =================" + utils.ENDC)
 				logging.info("buyback amt: " + str(buyback_amnt))
 				logging.info("price*quant: " + str((confirmed_price*confirmed_quantity)))
 				logging.info("profit: " + str(buyback_amnt - (confirmed_price*confirmed_quantity)))
-				logging.info("===================================================\n")
-				# pdb.set_trace()
+				logging.info(utils.GREEN + "===================================================" + utils.ENDC + "\n")
 				ti.trade_profit_taken += buyback_amnt - (confirmed_price*confirmed_quantity) 	# amount of profit taken on the trade is the amount (in dollars) you sold for, cumulatively, minus the amount (in dollars) you bought for
 				buyback_amnt = 0.0
 				consec_sells = 0
@@ -537,11 +547,11 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 					ref_price=sell_ref_price,
 					verbose=True)
 				if confirmed_price is not None:	# place order returns none if we have no more quantity to sell
-					logging.info("=================== CONFIRMED SELL =================")
+					logging.info(utils.RED + "=================== CONFIRMED SELL =================" + utils.ENDC)
 					logging.info("price: " + str(confirmed_price))
 					logging.info("quant: " + str(confirmed_quantity))
 					logging.info("price*quant: " + str(confirmed_price*confirmed_quantity))
-					logging.info("====================================================\n")
+					logging.info(utils.RED + "====================================================" + utils.ENDC + "\n")
 					if buyback_type == 'coin':
 						buyback_amnt += confirmed_quantity
 					elif buyback_type == 'dollar':

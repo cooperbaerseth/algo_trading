@@ -32,6 +32,11 @@ activity_column_dict = {
 		'ref_price': np.float64,
 		'order_amnt_dollars': np.float64, 
 		'order_amnt_quant': np.float64}
+BLUE = '\033[94m'
+CYAN = '\033[96m'
+GREEN = '\033[92m'
+RED = '\033[91m'
+ENDC = '\033[0m'
 
 # price = rs.robinhood.crypto.get_crypto_quote(symbol='DOGE', info='ask_price')
 # def get_price_time_pair(symbol):
