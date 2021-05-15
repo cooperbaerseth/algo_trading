@@ -25,6 +25,7 @@ activity_column_dict = {
 		'price': np.float64,
 		'moving_average': np.float64,
 		'trend': np.float64,
+		'trend_ma': np.float64,
 		'current_net': np.float64, 
 		'current_quantity': np.float64, 
 		'order_side': str, 

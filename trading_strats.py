@@ -56,10 +56,13 @@ class TradeInterface:
 		elif self.moving_avg_type == 'EMA':
 			self.ema = 0.0
 
+		# trend estimation init
 		# queue to determine general trend (slope) of price
-		# slope_queue_size = 5
-		slope_queue_size = 10
-		self.slope_queue = np.zeros(slope_queue_size)
+		trend_sma_size = 200
+		# trend_sma_size = 500
+		# trend_sma_size = 5000
+		self.trend_sma_queue = np.zeros(trend_sma_size)
+		self.trend_sma = 0.0
 		self.trend = None # trend will be 0 for negative, 1 for positive
 
 		# if not running on live data, load the history file into a dataframe
@@ -135,23 +138,29 @@ class TradeInterface:
 			print(price)
 			print(self.ema)
 			print(prev_ema)
-
-		# populate slope queue with current moving average and determine current slope
-		y = self.slope_queue
-		y[:-1] = y[1:]
-		y[-1] = self.sma if self.moving_avg_type == 'SMA' else self.ema
-		self.slope_queue = y
-		slope, _, _, _, _ = stats.linregress(np.arange(y.shape[0]), y) # using all points for slope
-		if slope > 0:
-			self.trend = 1
-		else:
-			self.trend = 0
-		
 		
 		if self.moving_avg_type == 'SMA':
 			return self.sma
 		elif self.moving_avg_type == 'EMA': 
 			return self.ema
+
+	def get_trend(self, price):
+		# update trend ma
+		x = self.trend_sma_queue
+		x[:-1] = x[1:]
+		x[-1] = price
+		self.trend_sma = x.sum() / x.shape[0]
+		self.trend_sma_queue = x
+
+		# determine current slope/trend
+		trend_queue_size = 10
+		# trend_queue_size = 100
+		x = self.trend_sma_queue[-trend_queue_size:]
+		slope, _, _, _, _ = stats.linregress(np.arange(x.shape[0]), x) # using all points for slope
+		if slope > 0:
+			self.trend = 1
+		else:
+			self.trend = 0
 
 	def get_next_price(self, verbose=False):
 		if self.live:
@@ -165,6 +174,7 @@ class TradeInterface:
 			self.cur_hist_ind += 1
 
 		ma = self.get_moving_avg(next_price)
+		self.get_trend(next_price)
 
 		# record activity for all non order-specific columns
 		if self.record_activity:
@@ -176,6 +186,7 @@ class TradeInterface:
 			self.activity_row[self.get_col_index('price')] = next_price
 			self.activity_row[self.get_col_index('moving_average')] = ma
 			self.activity_row[self.get_col_index('trend')] = self.trend
+			self.activity_row[self.get_col_index('trend_ma')] = self.trend_sma
 			self.activity_row[self.get_col_index('current_net')] = self.cur_net
 			self.activity_row[self.get_col_index('current_quantity')] = self.cur_quant
 
@@ -374,7 +385,8 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# define starting condition parameters
 	# Starting condition will be when:
 	#	- the price goes some percentage (percent_sell_thresh) above the average price over some defined interval (avg_interval)
-	avg_interval = 50
+	# avg_interval = 50
+	avg_interval = 500
 	
 	percent_sell_thresh = -1.0
 	# percent_sell_thresh = -0.5

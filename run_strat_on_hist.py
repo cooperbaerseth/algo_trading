@@ -48,11 +48,11 @@ def main():
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-154254.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-180658.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210502-220006.txt"
-	hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"	# big dip ... bug present with certain parameters
+	# hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"	# big dip ... bug present with certain parameters
 	# hist_data_file = utils.doge_hist_data_dir + "20210506-155335.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210509-143523.txt"	
 	# hist_data_file = utils.doge_hist_data_dir + "20210513-114520.txt" # file with sleep(0.1) while collecting
-	# hist_data_file = utils.doge_hist_data_dir + "20210515-091926.txt" # stagnant price
+	hist_data_file = utils.doge_hist_data_dir + "20210515-091926.txt" # stagnant price
 
 	# hist_data_file = utils.doge_hist_data_dir + "20210504-094158.txt" # short file for debugging
 	

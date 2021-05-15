@@ -47,11 +47,11 @@ def basic_plot(file_dir, trade_interface):
 	size = 1
 	offset = -0.008
 	neg_trend = df.index[df['trend']==0].tolist()
-	trend_mark = df['moving_average'].iloc[neg_trend] + offset
+	trend_mark = df['trend_ma'].iloc[neg_trend] + offset
 	ax.scatter(neg_trend, trend_mark, marker='v', color='g', s=size, zorder=3, label='trend down')
 
 	pos_trend = df.index[df['trend']==1].tolist()
-	trend_mark = df['moving_average'].iloc[pos_trend] + offset
+	trend_mark = df['trend_ma'].iloc[pos_trend] + offset
 	ax.scatter(pos_trend, trend_mark, marker='^', color='r', s=size, zorder=3, label='trend up')
 
 	# set y limits
