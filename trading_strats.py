@@ -420,9 +420,9 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	
 	# trade_amount = 0.5
 	# trade_amount = 50
-	trade_amount = 500
+	# trade_amount = 500
 	# trade_amount = 700
-	# trade_amount = 5000
+	trade_amount = 5000
 	
 	trade_unit = 'dollar'
 	# trade_unit = 'coin'

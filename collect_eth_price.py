@@ -29,5 +29,5 @@ logging.basicConfig(
 while True:
 	price = float(rs.robinhood.crypto.get_crypto_quote(symbol='ETH', info='ask_price'))
 	logging.info(str(price) + "|" + datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S.%f')[:-3])
-	time.sleep(0.2)
+	time.sleep(0.1)
 

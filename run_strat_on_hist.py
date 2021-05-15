@@ -36,7 +36,9 @@ def main():
 	net_limit_tracker_fname = sys.argv[2]
 	cur_net, net_min = utils.net_limit_safety_check(sys.argv)
 	doge_net_value, _, _ = utils.get_crypto_net_val(id=utils.doge_cur_pair_id, verbose=False)
-	logging.info("Current net doge profit: " + str(doge_net_value) + '\n')
+	invested = utils.get_total_invested(False)
+	logging.info("Current net doge profit: " + str(doge_net_value))
+	logging.info("Current invested amount: " + str(invested) + '\n')
 
 	# pass hist file to trading strat function
 	# hist_data_file = utils.doge_hist_data_dir + "20210425-171628.txt"
@@ -46,10 +48,11 @@ def main():
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-154254.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210429-180658.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210502-220006.txt"
-	# hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"
+	hist_data_file = utils.doge_hist_data_dir + "20210505-084058.txt"	# big dip ... bug present with certain parameters
 	# hist_data_file = utils.doge_hist_data_dir + "20210506-155335.txt"
 	# hist_data_file = utils.doge_hist_data_dir + "20210509-143523.txt"	
-	hist_data_file = utils.doge_hist_data_dir + "20210513-114520.txt" # file with sleep(0.1) while collecting
+	# hist_data_file = utils.doge_hist_data_dir + "20210513-114520.txt" # file with sleep(0.1) while collecting
+	# hist_data_file = utils.doge_hist_data_dir + "20210515-091926.txt" # stagnant price
 
 	# hist_data_file = utils.doge_hist_data_dir + "20210504-094158.txt" # short file for debugging
 	
