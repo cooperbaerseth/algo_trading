@@ -41,7 +41,8 @@ def basic_plot(file_dir, trade_interface):
 	# buy_prices = df['moving_average'].iloc[buy_inds]
 	ax.scatter(buy_inds, buy_prices_exact, color='g', zorder=3, label='buy price (exact)')
 	ax.scatter(buy_inds, buy_prices_ma, marker='d', color='g', zorder=3, label='buy price (MA)')
-	ax.scatter(buy_inds, buy_ref_prices, facecolors='none', edgecolors='g', zorder=3, label='buy reference price')
+	# ax.scatter(buy_inds, buy_ref_prices, facecolors='none', edgecolors='g', zorder=3, label='buy reference price')
+	ax.scatter(buy_inds, buy_ref_prices, facecolors='none', edgecolors='y', zorder=3, label='buy reference price')
 
 	# plot trend markers
 	size = 1

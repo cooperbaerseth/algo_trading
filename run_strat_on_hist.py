@@ -53,6 +53,8 @@ def main():
 	# hist_data_file = utils.doge_hist_data_dir + "20210509-143523.txt"	
 	# hist_data_file = utils.doge_hist_data_dir + "20210513-114520.txt" # file with sleep(0.1) while collecting
 	# hist_data_file = utils.doge_hist_data_dir + "20210515-091926.txt" # stagnant price
+	# hist_data_file = utils.doge_hist_data_dir + "20210501-181836.txt"	# down up price... - profit
+	# hist_data_file = utils.doge_hist_data_dir + "20210516-170749.txt"	
 
 	# hist_data_file = utils.doge_hist_data_dir + "20210504-094158.txt" # short file for debugging
 	

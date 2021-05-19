@@ -59,6 +59,7 @@ class TradeInterface:
 		# queue to determine general trend (slope) of price
 		# slope_queue_size = 5
 		slope_queue_size = 10
+		# slope_queue_size = 30000
 		self.slope_queue = np.zeros(slope_queue_size)
 		self.trend = None # trend will be 0 for negative, 1 for positive
 
@@ -146,6 +147,7 @@ class TradeInterface:
 			self.trend = 1
 		else:
 			self.trend = 0
+		# self.trend = 0	# trade independent of trend estimation
 		
 		
 		if self.moving_avg_type == 'SMA':
@@ -162,7 +164,10 @@ class TradeInterface:
 				self.report_and_quit()
 			if verbose: logging.info("Price: " + str(self.hist['price'][self.cur_hist_ind]))
 			next_price =  self.hist['price'][self.cur_hist_ind]
-			self.cur_hist_ind += 1
+			hist_reso = 1
+			# hist_reso = 5
+			# hist_reso = 10
+			self.cur_hist_ind += hist_reso
 
 		ma = self.get_moving_avg(next_price)
 
@@ -171,7 +176,7 @@ class TradeInterface:
 			if self.live:
 				self.activity_row[self.get_col_index('datetime')] = pd.to_datetime(time.strftime("%Y%m%d-%H%M%S"))
 			else:
-				self.activity_row[self.get_col_index('datetime')] = self.hist['datetime'][self.cur_hist_ind-1]
+				self.activity_row[self.get_col_index('datetime')] = self.hist['datetime'][self.cur_hist_ind-hist_reso]
 			self.activity_row[self.get_col_index('trade_symbol')] = self.trade_symbol
 			self.activity_row[self.get_col_index('price')] = next_price
 			self.activity_row[self.get_col_index('moving_average')] = ma
@@ -365,9 +370,10 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# 	the top, and buy near the bottom.
 
 	# history range setting
-	hist_range = None # uses whole history file
+	# hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
 	# hist_range = [0, 65500]
+	hist_range = [65500, 66500]
 	# hist_range = [0, 72800]
 	# hist_range = [0, 37900]
 
@@ -375,10 +381,23 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# Starting condition will be when:
 	#	- the price goes some percentage (percent_sell_thresh) above the average price over some defined interval (avg_interval)
 	avg_interval = 50
-	
+
+	# ####### dip winning params #######
+	# percent_sell_thresh = -1.0
+	# buyback_percent_thresh = 2.0
+	# buyback_dim_factor = .9
+	# buyback_queue_factor = 3
+	# sell_queue_factor = 3
+	# moving_avg_params = (200, 'SMA')
+	# trade_on = "moving_average"
+	# ##################################
+
+
+
 	percent_sell_thresh = -1.0
 	# percent_sell_thresh = -0.5
 	
+	# buyback_percent_thresh = 3.0
 	buyback_percent_thresh = 2.0
 	# buyback_percent_thresh = 1.0
 	# buyback_percent_thresh = 0.5
@@ -481,6 +500,11 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	while loop:
 		# cur_price = ti.get_next_price() # without queue
 		exact_price, ma = ti.get_next_price()# with queue
+
+		# don't start trade logic until moving average is valid (moving average queue should only have real prices)
+		if ti.moving_avg_type == 'SMA' and (0.0 in ti.sma_queue):
+			continue
+
 		if trade_on == "exact_price":
 			temp = exact_price
 		elif trade_on == "moving_average":
@@ -517,6 +541,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 			# if cur_change[qind] >= (buyback_percent_thresh * cur_buyback_dim_factor): # using only the most recent price (not making use of the queue)
 			if np.where(cur_change_buyback >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
 				# logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
+				pdb.set_trace()
 				confirmed_price, confirmed_quantity = ti.place_order(
 					symbol=symbol, 
 					trade_amount=buyback_amnt, 
@@ -542,6 +567,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 		# elif cur_change[qind] < percent_sell_thresh: # without using queue for sell condition
 		elif np.where(cur_change_sell < percent_sell_thresh, 1, 0).sum() == sell_queue_factor: # using queue to exclude anomalous lows
 			# logging.info("!!!!!!!!!!!! PERCENT THRESHOLD SELL TRIGGERED !!!!!!!!!!!!")
+			pdb.set_trace()
 			if ti.trend == 0:
 				confirmed_price, confirmed_quantity = ti.place_order(
 					symbol=symbol, 
