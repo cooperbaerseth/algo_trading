@@ -72,16 +72,17 @@ class TradeInterface:
 				self.report_and_quit()
 
 			# different loading conditions for processing history or activity file
-			if pd.read_csv(filepath_or_buffer=hist_file).shape[1] == 2:
+			if pd.read_csv(filepath_or_buffer=hist_file, sep='|').shape[1] == 2:
 				hist_df = pd.read_csv(filepath_or_buffer=hist_file, sep='|', names=['price', 'datetime'])
+				hist_df['datetime'] = pd.to_datetime(hist_df['datetime'])
 			else:
-				hist_df = pd.read_csv(filepath_or_buffer=hist_file, names=utils.activity_column_dict.keys())
-			hist_df['datetime'] = pd.to_datetime(hist_df['datetime'])
+				hist_df = pd.read_csv(filepath_or_buffer=hist_file, sep='|')
 			self.hist = hist_df
 			if self.hist_range != None:
 				self.cur_hist_ind = self.hist_range[0]
 			else:
 				self.cur_hist_ind = 0
+		# pdb.set_trace()
 
 		# set starting quantity and value
 		# if you want to trade as if you had a certain quantity, use the hardcoded quant/val
@@ -362,7 +363,7 @@ class TradeInterface:
 		if self.plot_post_run:
 			plotting.basic_plot(self.activity_file_dir)
 
-		quit()
+		sys.exit(0)
 
 
 def get_percent_diff(base_price, cur_price):
@@ -529,7 +530,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, paper_trading=True, plot_
 			# logging.info("===============================")
 			# logging.info("Reference price: " + str(ref_price))
 			# logging.info("Current price: " + str(round(cur_price[qind], 9)) + " | \t\t" + time.strftime("%Y%m%d-%H%M%S"))
-			print("Current price: " + str(round(cur_price[qind], 9)) + " | \t\t" + time.strftime("%Y%m%d-%H%M%S"))
+			if paper_trading: print("Current price: " + str(round(cur_price[qind], 9)) + " | \t\t" + time.strftime("%Y%m%d-%H%M%S"))
 			# logging.info("Percent change: " + str(cur_change))
 			# logging.info("===============================\n")
 
@@ -642,6 +643,8 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, paper_trading=True, plot_
 		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		ti.report_and_quit()
+	except SystemExit:
+		sys.exit(0)
 	except:
 		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
 		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")

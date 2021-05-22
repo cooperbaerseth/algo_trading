@@ -59,7 +59,7 @@ def main():
 
 	# hist_data_file = utils.doge_hist_data_dir + "20210504-094158.txt" # short file for debugging
 	
-	ts.test_strat1(net_tracker_fname=net_limit_tracker_fname, hist_file_dir=hist_data_file, plot_post_run=True)
+	ts.test_strat1(net_tracker_fname=net_limit_tracker_fname, hist_file_dir=hist_data_file, plot_post_run=True, paper_trading=False)
 
 
 
