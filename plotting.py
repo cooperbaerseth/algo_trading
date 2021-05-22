@@ -5,7 +5,7 @@ import utils
 
 import pdb
 
-def basic_plot(file_dir, trade_interface):
+def basic_plot(file_dir):
 	# load log file into pandas dataframe
 	df = pd.read_csv(
 		filepath_or_buffer=file_dir, 

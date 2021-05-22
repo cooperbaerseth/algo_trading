@@ -11,6 +11,7 @@ import numpy as np
 from scipy import stats
 import csv
 import os
+from copy import copy
 import pdb
 
 import utils
@@ -19,10 +20,11 @@ import plotting
 debug = False
 
 class TradeInterface:
-	def __init__(self, trade_symbol, net_tracker_fname, live=False, hist_file=None, hist_range=None, record_activity=True, moving_avg_params=(12, 'EMA'), plot_post_run=False):
+	def __init__(self, trade_symbol, net_tracker_fname, live=False, paper_trading=True,  hist_file=None, hist_range=None, record_activity=True, moving_avg_params=(12, 'EMA'), plot_post_run=False):
 		self.net_tracker_fname = net_tracker_fname
 		self.cur_net, self.net_min = utils.get_net_tracker_info(self.net_tracker_fname)
 		self.live = live
+		self.paper_trading = paper_trading
 		self.hist = None
 		self.cur_hist_ind = None
 		self.num_sells = 0
@@ -69,7 +71,11 @@ class TradeInterface:
 				logging.error("!!!!!!!!!!!! PriceGetter: HISTORY FILE CANNOT BE BLANK WHEN RUNNING STRAT ON HIST DATA !!!!!!!!!!!!")
 				self.report_and_quit()
 
-			hist_df = pd.read_csv(filepath_or_buffer=hist_file, sep='|', names=['price', 'datetime'])
+			# different loading conditions for processing history or activity file
+			if pd.read_csv(filepath_or_buffer=hist_file).shape[1] == 2:
+				hist_df = pd.read_csv(filepath_or_buffer=hist_file, sep='|', names=['price', 'datetime'])
+			else:
+				hist_df = pd.read_csv(filepath_or_buffer=hist_file, names=utils.activity_column_dict.keys())
 			hist_df['datetime'] = pd.to_datetime(hist_df['datetime'])
 			self.hist = hist_df
 			if self.hist_range != None:
@@ -80,9 +86,9 @@ class TradeInterface:
 		# set starting quantity and value
 		# if you want to trade as if you had a certain quantity, use the hardcoded quant/val
 		if live:
-			self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
-			# self.cur_quant = 30000
-			# self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=trade_symbol, info='ask_price'))
+			# self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
+			self.cur_quant = 30000
+			self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=trade_symbol, info='ask_price'))
 		else:
 			# self.cur_quant, _ = utils.get_held_crypto_value(symbol=self.trade_symbol)
 			# self.cur_quant_val = self.cur_quant * hist_df['price'][self.cur_hist_ind]
@@ -157,7 +163,7 @@ class TradeInterface:
 
 	def get_next_price(self, verbose=False):
 		if self.live:
-			logging.info("live")
+			next_price = float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
 		else:
 			if self.cur_hist_ind >= self.hist.shape[0] or (self.hist_range != None and self.cur_hist_ind >= self.hist_range[1]): # second condition ends the program if we surpass the set history file range
 				logging.info("!!!!!!!!!!!! Done with history processing... ending program !!!!!!!!!!!!")
@@ -251,7 +257,7 @@ class TradeInterface:
 	def place_order(self, symbol, trade_amount, trade_unit, order_side, ref_price, verbose=False):
 		# get current price
 		if self.live:
-			logging.info("getting current live price in place order not implemented yet")
+			price = float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
 		else:
 			price = self.hist['price'][self.cur_hist_ind-1]
 
@@ -271,7 +277,7 @@ class TradeInterface:
 				self.num_voided_sells += 1
 				return None, None
 
-		if self.live:
+		if self.live and self.paper_trading == False:
 			# order_info = rs.robinhood.orders.order_buy_crypto_by_quantity(
 		# 					symbol=symbol,
 		# 					quantity=quantity,
@@ -286,7 +292,7 @@ class TradeInterface:
 				verbose=verbose)
 
 		#TODO: if live, confirmed price should be taken from the confirmed order info, not the price we _wanted_ (it may be different)
-		if self.live:
+		if self.live and self.paper_trading == False:
 			logging.info("..... need to get confirmed price/amount from order info here .....")
 			pass
 		else:
@@ -297,23 +303,23 @@ class TradeInterface:
 		# update total buys/sells and cur_quant/cur_val tracking
 		if order_side == 'buy':
 			self.num_buys += 1
-			if self.live:
+			if self.live and self.paper_trading == False:
 				# update self.cur_quant, self.cur_quant_value via robin_stocks API
 				# self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
 				pass
 			else:
 				self.cur_quant += quantity
 				# self.cur_quant_val = self.cur_quant * float(rs.robinhood.crypto.get_crypto_quote(symbol=self.trade_symbol, info='ask_price'))
-				self.cur_quant_val = self.cur_quant * self.hist['price'][self.cur_hist_ind]
+				self.cur_quant_val = self.cur_quant * confirmed_price
 		elif order_side == 'sell':
 			self.num_sells += 1
-			if self.live:
+			if self.live and self.paper_trading == False:
 				# update self.cur_quant, self.cur_quant_value via robin_stocks API
 				# self.cur_quant, self.cur_quant_val = utils.get_held_crypto_value(symbol=self.trade_symbol)
 				pass
 			else:
 				self.cur_quant -= quantity
-				self.cur_quant_val = self.cur_quant * self.hist['price'][self.cur_hist_ind]
+				self.cur_quant_val = self.cur_quant * confirmed_price
 
 		# record order-specific activity columns
 		if self.record_activity:
@@ -354,7 +360,7 @@ class TradeInterface:
 
 		# show results on plot
 		if self.plot_post_run:
-			plotting.basic_plot(self.activity_file_dir, self)
+			plotting.basic_plot(self.activity_file_dir)
 
 		quit()
 
@@ -362,7 +368,7 @@ class TradeInterface:
 def get_percent_diff(base_price, cur_price):
 	return ((cur_price - base_price) / base_price)*100
 
-def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
+def test_strat1(net_tracker_fname, hist_file_dir=None, paper_trading=True, plot_post_run=False):
 	# Strategy summary:
 	# This simple test strategy starts with a sell, waits till the price comes down a certain amount, and sells again. 
 	# 	At any point, if the current price >= the last sell price, we buy back. Whether or not we put the profit back 
@@ -370,12 +376,12 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# 	the top, and buy near the bottom.
 
 	# history range setting
-	# hist_range = None # uses whole history file
+	hist_range = None # uses whole history file
 	# hist_range = [40000, 60000]
 	# hist_range = [0, 65500]
-	hist_range = [65500, 66500]
+	# hist_range = [65500, 66500]
 	# hist_range = [0, 72800]
-	# hist_range = [0, 37900]
+	hist_range = [0, 37900]
 
 	# define starting condition parameters
 	# Starting condition will be when:
@@ -454,6 +460,9 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	# buyback_type = 'dollar'
 	# sleep_time = 0.05
 	sleep_time = 0
+	live_sleep_time = 0.1
+	# live_sleep_time = 0.2
+	# live_sleep_time = 0.3
 
 	# initialize price getter
 	if hist_file_dir == None:
@@ -468,6 +477,7 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 		trade_symbol=symbol, 
 		net_tracker_fname=net_tracker_fname, 
 		live=live_mode, 
+		paper_trading=paper_trading,
 		hist_file=hist_file_dir, 
 		hist_range=hist_range, 
 		record_activity=True, 
@@ -479,14 +489,16 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	for i in range(avg_interval):
 		temp, _ = ti.get_next_price()
 		price_sum += temp
+		if live_mode == True:
+			time.sleep(live_sleep_time)
 	start_price = price_sum / avg_interval
 	logging.info("Start price: " + str(start_price))
 
 	# search for percent threshold change to start trading
 	buyback_amnt = 0.0
 	# ref_price = start_price.copy() # to go back to a non decoupled reference price, change all sell/buyback reference prices to ref_price
-	sell_ref_price = start_price.copy()	# sell reference price tracks the local peak for reference in starting a sell sequence
-	buyback_ref_price = start_price.copy() # buyback reference price tracks the local minimum in order to get the best buyback price (potentially better than leaving the buyback reference as the last sell point)
+	sell_ref_price = copy(start_price)	# sell reference price tracks the local peak for reference in starting a sell sequence
+	buyback_ref_price = copy(start_price) # buyback reference price tracks the local minimum in order to get the best buyback price (potentially better than leaving the buyback reference as the last sell point)
 	last_trade = 'buy'
 
 	# start main sell-buy loop here
@@ -497,126 +509,148 @@ def test_strat1(net_tracker_fname, hist_file_dir=None, plot_post_run=False):
 	cumul_sells_dollar = 0.0
 	cur_price = np.zeros(buyback_queue_factor)
 	qind = 0
-	while loop:
-		# cur_price = ti.get_next_price() # without queue
-		exact_price, ma = ti.get_next_price()# with queue
+	try:
+		while loop:
+			# cur_price = ti.get_next_price() # without queue
+			exact_price, ma = ti.get_next_price()# with queue
 
-		# don't start trade logic until moving average is valid (moving average queue should only have real prices)
-		if ti.moving_avg_type == 'SMA' and (0.0 in ti.sma_queue):
-			continue
+			# don't start trade logic until moving average is valid (moving average queue should only have real prices)
+			if ti.moving_avg_type == 'SMA' and (0.0 in ti.sma_queue):
+				continue
 
-		if trade_on == "exact_price":
-			temp = exact_price
-		elif trade_on == "moving_average":
-			temp = ma
-		cur_price[qind] = temp
-		# cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
-		cur_change_sell = get_percent_diff(base_price=sell_ref_price, cur_price=cur_price)
-		cur_change_buyback = get_percent_diff(base_price=buyback_ref_price, cur_price=cur_price)
-		# logging.info("===============================")
-		# logging.info("Reference price: " + str(ref_price))
-		# logging.info("Current price: " + str(cur_price))
-		# logging.info("Percent change: " + str(cur_change))
-		# logging.info("===============================\n")
+			if trade_on == "exact_price":
+				temp = exact_price
+			elif trade_on == "moving_average":
+				temp = ma
+			cur_price[qind] = temp
+			# cur_change = get_percent_diff(base_price=ref_price, cur_price=cur_price)
+			cur_change_sell = get_percent_diff(base_price=sell_ref_price, cur_price=cur_price)
+			cur_change_buyback = get_percent_diff(base_price=buyback_ref_price, cur_price=cur_price)
+			# logging.info("===============================")
+			# logging.info("Reference price: " + str(ref_price))
+			# logging.info("Current price: " + str(round(cur_price[qind], 9)) + " | \t\t" + time.strftime("%Y%m%d-%H%M%S"))
+			print("Current price: " + str(round(cur_price[qind], 9)) + " | \t\t" + time.strftime("%Y%m%d-%H%M%S"))
+			# logging.info("Percent change: " + str(cur_change))
+			# logging.info("===============================\n")
 
-		# compute the buyback diminish factor... if we have no consecutive sells (0), we should set the diminish factor to 1 (no diminishing)
-		if consec_sells > 0:
-			cur_buyback_dim_factor = buyback_dim_factor ** consec_sells
-		else:
-			cur_buyback_dim_factor = 1
+			# compute the buyback diminish factor... if we have no consecutive sells (0), we should set the diminish factor to 1 (no diminishing)
+			if consec_sells > 0:
+				cur_buyback_dim_factor = buyback_dim_factor ** consec_sells
+			else:
+				cur_buyback_dim_factor = 1
 
-		# if cur_price >= ref_price: # without buyback queue factor
-		if cur_price[qind] >= sell_ref_price:
-			# pdb.set_trace()
-			# this condition is for increasing the reference price when looking for a sell threshold
-			# if cur_price > ref_price and last_trade == 'buy': # this condition makes the algo buy if we have the same price multiple times in a row
-			if last_trade == 'buy':
-				# ref_price = cur_price # without buyback queue factor
-				sell_ref_price = cur_price[qind]
-				continue # (?)
-			# buy back the amount that was sold (in coins) to prevent more losses
-			# - use cumul_sell_amnt for amount to buy back
-			# - keep reference price the same
-			# if cur_change >= (buyback_percent_thresh * cur_buyback_dim_factor): # not using a queue
-			# if cur_change[qind] >= (buyback_percent_thresh * cur_buyback_dim_factor): # using only the most recent price (not making use of the queue)
-			if np.where(cur_change_buyback >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
-				# logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
-				pdb.set_trace()
-				confirmed_price, confirmed_quantity = ti.place_order(
-					symbol=symbol, 
-					trade_amount=buyback_amnt, 
-					trade_unit=buyback_type, 
-					order_side='buy', 
-					ref_price=buyback_ref_price,
-					verbose=True)
-				last_trade = 'buy'
+			# if cur_price >= ref_price: # without buyback queue factor
+			if cur_price[qind] >= sell_ref_price:
 				# pdb.set_trace()
-				logging.info(utils.GREEN + "=================== CONFIRMED BUY =================" + utils.ENDC)
-				logging.info("price: " + str(confirmed_price))
-				logging.info("buyback amt (" + buyback_type + "): " + str(buyback_amnt))
-				logging.info("price*quant: " + str((confirmed_price*confirmed_quantity)))
-				logging.info("profit: " + str(cumul_sells_dollar - (confirmed_price*confirmed_quantity)))
-				logging.info(utils.GREEN + "===================================================" + utils.ENDC + "\n")
-				ti.trade_profit_taken += cumul_sells_dollar - (confirmed_price*confirmed_quantity) 	# amount of profit taken on the trade is the amount (in dollars) you sold for, cumulatively, minus the amount (in dollars) you bought for
-				buyback_amnt = 0.0
-				consec_sells = 0
-				cumul_sells_dollar = 0.0
-				sell_ref_price = confirmed_price
-				buyback_ref_price = confirmed_price
-		# elif cur_change < percent_sell_thresh: # without buyback queue factor
-		# elif cur_change[qind] < percent_sell_thresh: # without using queue for sell condition
-		elif np.where(cur_change_sell < percent_sell_thresh, 1, 0).sum() == sell_queue_factor: # using queue to exclude anomalous lows
-			# logging.info("!!!!!!!!!!!! PERCENT THRESHOLD SELL TRIGGERED !!!!!!!!!!!!")
-			pdb.set_trace()
-			if ti.trend == 0:
-				confirmed_price, confirmed_quantity = ti.place_order(
-					symbol=symbol, 
-					trade_amount=trade_amount, 
-					trade_unit=trade_unit, 
-					order_side='sell', 
-					ref_price=sell_ref_price,
-					verbose=True)
-				if confirmed_price is not None:	# place order returns none if we have no more quantity to sell
-					logging.info(utils.RED + "=================== CONFIRMED SELL =================" + utils.ENDC)
+				# this condition is for increasing the reference price when looking for a sell threshold
+				# if cur_price > ref_price and last_trade == 'buy': # this condition makes the algo buy if we have the same price multiple times in a row
+				if last_trade == 'buy':
+					# ref_price = cur_price # without buyback queue factor
+					sell_ref_price = cur_price[qind]
+					# continue # (?)
+				# buy back the amount that was sold (in coins) to prevent more losses
+				# - use cumul_sell_amnt for amount to buy back
+				# - keep reference price the same
+				# if cur_change >= (buyback_percent_thresh * cur_buyback_dim_factor): # not using a queue
+				# if cur_change[qind] >= (buyback_percent_thresh * cur_buyback_dim_factor): # using only the most recent price (not making use of the queue)
+				elif np.where(cur_change_buyback >= (buyback_percent_thresh * cur_buyback_dim_factor), 1, 0).sum() == buyback_queue_factor: # using a queue, all percent changes in queue should meet the buyback condition 
+					# logging.info("!!!!!!!!!!!! STOP LOSS BUY TRIGGERED !!!!!!!!!!!!")
+					# pdb.set_trace()
+					confirmed_price, confirmed_quantity = ti.place_order(
+						symbol=symbol, 
+						trade_amount=buyback_amnt, 
+						trade_unit=buyback_type, 
+						order_side='buy', 
+						ref_price=buyback_ref_price,
+						verbose=True)
+					last_trade = 'buy'
+					# pdb.set_trace()
+					logging.info(utils.GREEN + "=================== CONFIRMED BUY =================" + utils.ENDC)
 					logging.info("price: " + str(confirmed_price))
-					logging.info("quant: " + str(confirmed_quantity))
-					logging.info("price*quant: " + str(confirmed_price*confirmed_quantity))
-					logging.info(utils.RED + "====================================================" + utils.ENDC + "\n")
-					if buyback_type == 'coin':
-						buyback_amnt += confirmed_quantity
-					elif buyback_type == 'dollar':
-						buyback_amnt += (confirmed_price * confirmed_quantity)
-					last_trade = 'sell'
-					consec_sells += 1
-					cumul_sells_dollar += (confirmed_price * confirmed_quantity)
+					logging.info("buyback amt (" + buyback_type + "): " + str(buyback_amnt))
+					logging.info("price*quant: " + str((confirmed_price*confirmed_quantity)))
+					logging.info("profit: " + str(cumul_sells_dollar - (confirmed_price*confirmed_quantity)))
+					logging.info(utils.GREEN + "===================================================" + utils.ENDC + "\n")
+					ti.trade_profit_taken += cumul_sells_dollar - (confirmed_price*confirmed_quantity) 	# amount of profit taken on the trade is the amount (in dollars) you sold for, cumulatively, minus the amount (in dollars) you bought for
+					buyback_amnt = 0.0
+					consec_sells = 0
+					cumul_sells_dollar = 0.0
 					sell_ref_price = confirmed_price
 					buyback_ref_price = confirmed_price
-				else:
-					sell_ref_price = cur_price[qind]
-					buyback_ref_price = cur_price[qind]
-		elif cur_price[qind] < buyback_ref_price:
-			buyback_ref_price = cur_price[qind]
-		# if price keeps going lower but the sell condition isn't met yet, set reference price lower... this means the buyback threshold will be more sensitive
+			# elif cur_change < percent_sell_thresh: # without buyback queue factor
+			# elif cur_change[qind] < percent_sell_thresh: # without using queue for sell condition
+			elif np.where(cur_change_sell < percent_sell_thresh, 1, 0).sum() == sell_queue_factor: # using queue to exclude anomalous lows
+				# logging.info("!!!!!!!!!!!! PERCENT THRESHOLD SELL TRIGGERED !!!!!!!!!!!!")
+				# pdb.set_trace()
+				if ti.trend == 0:
+					confirmed_price, confirmed_quantity = ti.place_order(
+						symbol=symbol, 
+						trade_amount=trade_amount, 
+						trade_unit=trade_unit, 
+						order_side='sell', 
+						ref_price=sell_ref_price,
+						verbose=True)
+					if confirmed_price is not None:	# place order returns none if we have no more quantity to sell
+						logging.info(utils.RED + "=================== CONFIRMED SELL =================" + utils.ENDC)
+						logging.info("price: " + str(confirmed_price))
+						logging.info("quant: " + str(confirmed_quantity))
+						logging.info("price*quant: " + str(confirmed_price*confirmed_quantity))
+						logging.info(utils.RED + "====================================================" + utils.ENDC + "\n")
+						if buyback_type == 'coin':
+							buyback_amnt += confirmed_quantity
+						elif buyback_type == 'dollar':
+							buyback_amnt += (confirmed_price * confirmed_quantity)
+						last_trade = 'sell'
+						consec_sells += 1
+						cumul_sells_dollar += (confirmed_price * confirmed_quantity)
+						sell_ref_price = confirmed_price
+						buyback_ref_price = confirmed_price
+					else:
+						sell_ref_price = cur_price[qind]
+						buyback_ref_price = cur_price[qind]
+			elif cur_price[qind] < buyback_ref_price:
+				buyback_ref_price = cur_price[qind]
+			# if price keeps going lower but the sell condition isn't met yet, set reference price lower... this means the buyback threshold will be more sensitive
 
-		# debug price/ma
-		if debug:
-			logging.info("===================")
-			logging.info("price: " + str(ti.hist['price'][ti.cur_hist_ind-1]))
-			logging.info("queue: " + str(cur_price))
-			logging.info("_next_price_: " + str(cur_price[qind]))
-			logging.info("===================\n")
+			# debug price/ma
+			if debug:
+				logging.info("===================")
+				logging.info("price: " + str(ti.hist['price'][ti.cur_hist_ind-1]))
+				logging.info("queue: " + str(cur_price))
+				logging.info("_next_price_: " + str(cur_price[qind]))
+				logging.info("===================\n")
 
-		# update buyback queue rolling index
-		qind += 1
-		if qind >= buyback_queue_factor:
-			qind = 0 
-		
-		if ti.record_activity:
-			ti.flush_activity_record()
-		if live_mode == False:
-			time.sleep(sleep_time)
-
-
+			# update buyback queue rolling index
+			qind += 1
+			if qind >= buyback_queue_factor:
+				qind = 0 
+			
+			if ti.record_activity:
+				ti.flush_activity_record()
+			if live_mode == False:
+				time.sleep(sleep_time)
+			if live_mode == True:
+				print(live_sleep_time)
+				time.sleep(live_sleep_time)
+	
+	except KeyboardInterrupt:
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!! Manual Stop !!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!! Ending Program !!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		ti.report_and_quit()
+	except:
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!! ERROR !!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!! Ending Program !!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		logging.info("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+		ti.report_and_quit()
 
 
 
